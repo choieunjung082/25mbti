@@ -111,4 +111,31 @@ fig.update_xaxes(range=[0, max(10, max_pct * 1.15)])
 
 # ===== 출력 =====
 left, right = st.columns([2, 1], gap="large")
-with lef
+with left:
+    st.subheader(f"📊 {country} — MBTI 분포 (상위 {top_n}개)")
+    st.plotly_chart(fig, use_container_width=True)
+
+with right:
+    st.subheader("요약")
+    if not data.empty:
+        top1 = data.iloc[0]
+        st.metric("가장 높은 유형", f"{top1['MBTI']}", f"{top1['Percent']:.2f}%")
+    st.markdown(
+        f"""
+- 지역: **Asia**
+- 국가: **{country}**
+- 표시된 막대: **{len(data)}개 / 16개**
+        """
+    )
+    st.markdown("---")
+    st.caption("🎨 색상 팔레트: Set3 + Pastel + Antique 믹스")
+
+if show_table:
+    st.markdown("### 📄 원자료 (선택국가)")
+    st.dataframe(
+        data[["MBTI", "Percent"]].rename(columns={"Percent": "Percent (%)"}),
+        use_container_width=True
+    )
+
+st.markdown("---")
+st.markdown("✅ Plotly로 상호작용, Streamlit Cloud에서 바로 동작합니다.  |  🖼 헤더 이미지는 선택사항입니다.")
