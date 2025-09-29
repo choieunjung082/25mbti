@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 from pathlib import Path
 
-st.set_page_config(page_title="MBTI by Asian Country (with Korea comparison)", page_icon="🇰🇷", layout="wide")
+st.set_page_config(page_title="MBTI by Asian Country (with South Korea comparison)", page_icon="🇰🇷", layout="wide")
 
 # ============== 헤더 이미지 (있으면 자동 표시) ==============
 header_path = None
@@ -15,8 +15,8 @@ if header_path:
     st.image(header_path, use_column_width=True)
 
 # ============== 제목/설명 ==============
-st.title("🌏 아시아 국가 선택 → 한국과 MBTI 분포 비교")
-st.caption("같은 폴더의 `countriesMBTI_16types.csv`를 사용합니다. 한국(Korea, Republic of)을 기준으로 다른 아시아 국가의 MBTI 16유형 분포를 비교해보세요.")
+st.title("🌏 아시아 국가 선택 → South Korea와 MBTI 분포 비교")
+st.caption("같은 폴더의 `countriesMBTI_16types.csv`를 사용합니다. South Korea를 기준으로 다른 아시아 국가의 MBTI 16유형 분포를 비교해보세요.")
 
 # ============== 데이터 로드 (캐시) ==============
 @st.cache_data(show_spinner=False)
@@ -33,7 +33,7 @@ asia_canon = {
     "Afghanistan", "Armenia", "Azerbaijan", "Bahrain", "Bangladesh", "Bhutan",
     "Brunei Darussalam", "Cambodia", "China", "Georgia", "India", "Indonesia",
     "Iran (Islamic Republic of)", "Iraq", "Israel", "Japan", "Jordan", "Kazakhstan",
-    "Korea, Democratic People's Republic of", "Korea, Republic of", "Kuwait",
+    "North Korea", "South Korea", "Kuwait",
     "Kyrgyzstan", "Lao People's Democratic Republic", "Lebanon", "Malaysia",
     "Maldives", "Mongolia", "Myanmar", "Nepal", "Oman", "Pakistan", "Philippines",
     "Qatar", "Saudi Arabia", "Singapore", "Sri Lanka", "State of Palestine",
@@ -43,31 +43,29 @@ asia_canon = {
 }
 asia_list = sorted(set(df["Country"]).intersection(asia_canon))
 
-if "Korea, Republic of" not in asia_list:
-    st.error("데이터셋에 'Korea, Republic of'가 없습니다. CSV의 국가 표기를 확인해주세요.")
+if "South Korea" not in asia_list:
+    st.error("데이터셋에 'South Korea'가 없습니다. CSV의 국가 표기를 확인해주세요.")
     st.stop()
 
 # ============== 사이드바 설정 ==============
 with st.sidebar:
     st.header("⚙️ 설정")
-    # 단일 국가 상세 보기(한국 포함 아시아 국가 중 선택)
-    country_default_ix = asia_list.index("Korea, Republic of")
+    # 단일 국가 상세 보기
+    country_default_ix = asia_list.index("South Korea")
     country_single = st.selectbox("단일 국가 상세 보기", asia_list, index=country_default_ix)
 
     st.markdown("---")
-    st.subheader("📊 한국과 비교(멀티 셀렉트)")
-    # 한국을 제외한 리스트에서 선택
-    compare_candidates = [c for c in asia_list if c != "Korea, Republic of"]
+    st.subheader("📊 South Korea와 비교(멀티 셀렉트)")
+    compare_candidates = [c for c in asia_list if c != "South Korea"]
     preselect = []
     if "Japan" in compare_candidates: preselect.append("Japan")
     if "China" in compare_candidates: preselect.append("China")
     country_multi = st.multiselect(
-        "비교할 아시아 국가 선택 (한국은 자동 포함)",
+        "비교할 아시아 국가 선택 (South Korea는 자동 포함)",
         compare_candidates,
         default=preselect
     )
-    # 막대 개수(상위 N, 한국 기준)
-    top_n = st.slider("상위 N개 유형만 보기 (정렬 기준: 한국 비율)", min_value=5, max_value=16, value=16, step=1)
+    top_n = st.slider("상위 N개 유형만 보기 (정렬 기준: South Korea 비율)", min_value=5, max_value=16, value=16, step=1)
     show_table = st.checkbox("비교 데이터 표로도 보기", value=False)
 
     st.markdown("---")
@@ -82,7 +80,6 @@ single_df = (
 )
 single_df["Percent"] = (single_df["Ratio"] * 100).round(2)
 
-# 색상 팔레트 (부드러운 파스텔 + Set3 + Antique)
 palette = px.colors.qualitative.Set3 + px.colors.qualitative.Pastel + px.colors.qualitative.Antique
 colors_single = [palette[i % len(palette)] for i in range(len(single_df))]
 
@@ -95,7 +92,6 @@ fig_single = px.bar(
     color="MBTI",
     color_discrete_sequence=colors_single,
     hover_data={"MBTI": True, "Percent": True, "Ratio": False},
-    title=None,
     template="simple_white",
 )
 fig_single.update_traces(texttemplate="%{text:.2f}%", textposition="outside", cliponaxis=False)
@@ -110,17 +106,13 @@ fig_single.update_layout(
 )
 fig_single.update_xaxes(range=[0, max(10, single_df["Percent"].max() * 1.15)])
 
-# ============== 한국 기준 멀티 비교용 데이터 가공 ==============
-# 항상 한국 포함
-countries_to_plot = ["Korea, Republic of"] + [c for c in country_multi if c != "Korea, Republic of"]
+# ============== South Korea 기준 멀티 비교용 데이터 ==============
+countries_to_plot = ["South Korea"] + [c for c in country_multi if c != "South Korea"]
 
-# 한국의 비율로 MBTI 정렬 기준 생성
-kr_row = df[df["Country"] == "Korea, Republic of"].iloc[0]
+kr_row = df[df["Country"] == "South Korea"].iloc[0]
 kr_base = pd.Series({m: kr_row[m] for m in mbti_cols}).sort_values(ascending=False)
-# 상위 N개만
 kr_topN_mbti = kr_base.head(top_n).index.tolist()
 
-# 롱포맷 변환
 records = []
 for ctry in countries_to_plot:
     sub = df[df["Country"] == ctry].iloc[0]
@@ -133,19 +125,14 @@ for ctry in countries_to_plot:
         })
 long_df = pd.DataFrame(records)
 
-# MBTI 축 순서(한국 비율 내림차순) 유지
 mbti_order = kr_topN_mbti
 
-# 한국은 굵은 색, 비교국은 파스텔 위주 매핑
-# 한국 색을 먼저 지정하고 나머지를 팔레트로 채움
 def build_color_map(countries):
     base_cols = px.colors.qualitative.Safe + px.colors.qualitative.Set1 + px.colors.qualitative.Set3
-    cmap = {}
-    # 한국은 선명한 파랑 계열 지정
-    cmap["Korea, Republic of"] = "#1f77b4"
+    cmap = {"South Korea": "#1f77b4"}  # South Korea는 선명한 파랑
     idx = 0
     for c in countries:
-        if c == "Korea, Republic of":
+        if c == "South Korea":
             continue
         cmap[c] = base_cols[idx % len(base_cols)]
         idx += 1
@@ -166,8 +153,7 @@ fig_cmp = px.bar(
 )
 fig_cmp.update_traces(texttemplate="%{y:.2f}%", textposition="outside", cliponaxis=False)
 fig_cmp.update_layout(
-    title=None,
-    xaxis_title="MBTI 유형 (한국 비율 기준 상위 N)",
+    xaxis_title="MBTI 유형 (South Korea 비율 기준 상위 N)",
     yaxis_title="비율 (%)",
     margin=dict(l=10, r=10, t=10, b=10),
     bargap=0.18,
@@ -175,13 +161,11 @@ fig_cmp.update_layout(
     height=620,
     legend_title_text="국가",
 )
-# y축 상단 여유
 ymax = long_df["Percent"].max() if not long_df.empty else 0
 fig_cmp.update_yaxes(range=[0, max(10, ymax * 1.25)])
 
-# ============== 출력 레이아웃 ==============
+# ============== 출력 ==============
 left, right = st.columns([2, 1], gap="large")
-
 with left:
     st.subheader(f"📈 단일 국가 상세: {country_single}")
     st.plotly_chart(fig_single, use_container_width=True)
@@ -194,14 +178,13 @@ with right:
     st.markdown(
         f"""
 - 선택 국가(상세): **{country_single}**
-- 비교 국가(한국 포함): **{len(countries_to_plot)}개**
-- 상위 N(한국 기준): **{top_n}개 / 16개**
+- 비교 국가(South Korea 포함): **{len(countries_to_plot)}개**
+- 상위 N (South Korea 기준): **{top_n}개 / 16개**
         """
     )
-    st.caption("🧭 비교 차트의 MBTI 축은 **한국 비율 내림차순 Top N**으로 정렬됩니다.")
 
 st.markdown("---")
-st.subheader(f"🇰🇷 한국과 비교 (상위 {top_n}개 유형, 한국 기준 정렬)")
+st.subheader(f"🇰🇷 South Korea와 비교 (상위 {top_n}개 유형, South Korea 기준 정렬)")
 st.plotly_chart(fig_cmp, use_container_width=True)
 
 if show_table:
@@ -210,6 +193,3 @@ if show_table:
         long_df.rename(columns={"Percent": "Percent (%)"}),
         use_container_width=True
     )
-
-st.markdown("---")
-st.markdown("✅ Plotly로 상호작용, Streamlit Cloud에서 바로 동작합니다.  |  🖼 헤더 이미지는 선택사항입니다.")
